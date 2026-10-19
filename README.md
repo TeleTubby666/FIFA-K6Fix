@@ -69,10 +69,8 @@ For the standard build listed below this is offset `0x96F43` (A) and `0x96EAA` (
 
 ### Things to know
 
-* **Keep the file name the game expects.** The start-up loader looks for its own EXE by a hard-coded name in the current
-  directory (`fifa.exe` in all three known builds, including the CD-ROM and "4 MB" executables), so a renamed copy will most likely
-  not start. All releases ship the EXE as `FIFA.EXE`. If you rename copies to keep several builds in one folder (e.g. `FIFACD.EXE`),
-  patch them under that name and copy the one you want to play back to `FIFA.EXE`; separate folders are simpler. The tool prints the expected name when you run it (also with `--check`).
+* **Keep the file name `FIFA.EXE`.** The start-up loader looks for its own EXE by that hard-coded name in the current
+  directory, so a renamed copy will most likely not start.
 * The tool refuses to touch anything it does not recognise: wrong file, ambiguous matches, or a file that was already
   modified by something else. Running it twice is harmless ("Both patch sites already carry the fix").
 
