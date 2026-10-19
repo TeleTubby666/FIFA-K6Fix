@@ -76,22 +76,6 @@ For the standard build listed below this is offset `0x96F43` (A) and `0x96EAA` (
 * The tool refuses to touch anything it does not recognise: wrong file, ambiguous matches, or a file that was already
   modified by something else. Running it twice is harmless ("Both patch sites already carry the fix").
 
-## Game versions at a glance
-
-As far as public sources describe them ([dosdays.co.uk](https://www.dosdays.co.uk/topics/Games/game_fifa.php),
-[abandonsocios forum](https://www.abandonsocios.org/index.php?topic=6641.30)):
-
-* **Floppy release** (1994, three 3.5" disks): the original PC version. Runs with 4 MB RAM.
-* **CD-ROM release ("Special Edition")**: appeared soon after the floppy version. Adds Tony Gubba's running commentary,
-  CD audio / new music, an FMV intro, a player name editor and an Italian language option; the goalkeeper bug of the floppy
-  version is reported to be fixed. The commentary needs 8 MB RAM.
-* **"4 MB" executable**: a community-made replacement EXE for the CD-ROM release. Its `FILE_ID.DIZ` says it lets the 8 MB
-  version run on a 4 MB machine. (What exactly is switched off to save memory is not documented there.)
-
-All three executables are covered below. Each contains the same start-up loader and looks for a file named `fifa.exe`.
-A sound problem with the CD-ROM based builds is discussed on
-[VOGONS](https://www.vogons.org/viewtopic.php?t=59885); it is unrelated to this fix, which does not touch any audio code.
-
 ## Known builds
 
 The patcher recognises these builds (all three were checked with `--check`; the loader is the same code block in each,
@@ -99,11 +83,13 @@ the two patch sites are always `0x99` bytes apart):
 
 | Build | Size | SHA-256 | Patch sites (file offset A / B) | Status |
 |---|---|---|---|---|
-| Standard DOS release (probably the floppy version) | 816,980 | `8f1ae8d4080729df06a8ec4d2fceee820f21b21325b7146f183cc50d06a48971` | `0x96F43` / `0x96EAA` | **tested** on real K6-III+ hardware and in DOSBox-X |
-| CD-ROM release | 856,244 | `00956baf8ef9d1cffde9e5e0d85ddc3b9a2e2dff61711523321443cadf545d3c` | `0xA08AF` / `0xA0816` | sites found, not yet tested on hardware |
-| Community-made "4 MB" executable for the CD-ROM release (its `FILE_ID.DIZ` says it lets the 8 MB version run on a 4 MB machine) | 835,860 | `30e405ba6e9195bdea6fcfb7316424b3ce15d1c2f405465c14134f8a5aaaf774` | `0x9B907` / `0x9B86E` | sites found, not yet tested on hardware |
+| Floppy release (1994) | 816,980 | `8f1ae8d4080729df06a8ec4d2fceee820f21b21325b7146f183cc50d06a48971` | `0x96F43` / `0x96EAA` | **tested** on real K6-III+ hardware and in DOSBox-X |
+| CD-ROM release ("Special Edition": intro, commentary) | 856,244 | `00956baf8ef9d1cffde9e5e0d85ddc3b9a2e2dff61711523321443cadf545d3c` | `0xA08AF` / `0xA0816` | sites found, not yet tested on hardware |
+| "4 MB" executable for the CD-ROM release (appears to be an official EA update; its `FILE_ID.DIZ` says it lets the 8 MB version run on a 4 MB machine) | 835,860 | `30e405ba6e9195bdea6fcfb7316424b3ce15d1c2f405465c14134f8a5aaaf774` | `0x9B907` / `0x9B86E` | sites found, not yet tested on hardware |
 
-CRC-32 of the unpatched files (as printed by `FK6FIX.EXE`): standard `2D5602DB`, CD-ROM `5E0BCA79`, "4 MB" `A5ADB291`.
+CRC-32 of the unpatched files (as printed by `FK6FIX.EXE`): floppy `2D5602DB`, CD-ROM `5E0BCA79`, "4 MB" `A5ADB291`.
+
+A sound problem in the CD-ROM based builds is discussed on [VOGONS](https://www.vogons.org/viewtopic.php?t=59885); it is unrelated to this fix, which does not touch any audio code.
 
 For the standard build, CRC-32 is `2D5602DB` before and `4A08FA59` after patching (`FK6FIX.EXE` prints CRC-32, the Python
 tool prints both); SHA-256 after patching is `ecdecd544ac0d0ad4e677a6269f671980de1759c2b42745820b9b4bdeeff7395`.

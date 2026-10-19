@@ -5,7 +5,7 @@ All of this was derived by disassembling the loader inside the EXE (no source co
 was verified and what was not.
 
 Numbers refer to the standard build with SHA-256 `8f1ae8d4…06a48971` (816,980 bytes). In that build
-**virtual address = file offset + 0x5450** for everything described here. The CD-ROM build (856,244 bytes) and the community "4 MB"
+**virtual address = file offset + 0x5450** for everything described here. The CD-ROM build (856,244 bytes) and the "4 MB"
 executable (835,860 bytes) contain the same loader code at other addresses: patch site A always lies exactly `0x99` bytes
 behind the start of the site B pattern; only the absolute addresses inside the instructions differ (which is why the
 patcher treats them as wildcards). In the standard build the loader's file name string sits `0xF8` bytes behind the site B
