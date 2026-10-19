@@ -84,12 +84,10 @@ the two patch sites are always `0x99` bytes apart):
 | Build | Size | SHA-256 | Patch sites (file offset A / B) | Status |
 |---|---|---|---|---|
 | Floppy release (1994) | 816,980 | `8f1ae8d4080729df06a8ec4d2fceee820f21b21325b7146f183cc50d06a48971` | `0x96F43` / `0x96EAA` | **tested** on real K6-III+ hardware and in DOSBox-X |
-| CD-ROM release ("Special Edition": intro, commentary) | 856,244 | `00956baf8ef9d1cffde9e5e0d85ddc3b9a2e2dff61711523321443cadf545d3c` | `0xA08AF` / `0xA0816` | sites found, not yet tested on hardware |
-| "4 MB" executable for the CD-ROM release (appears to be an official EA update; its `FILE_ID.DIZ` says it lets the 8 MB version run on a 4 MB machine) | 835,860 | `30e405ba6e9195bdea6fcfb7316424b3ce15d1c2f405465c14134f8a5aaaf774` | `0x9B907` / `0x9B86E` | sites found, not yet tested on hardware |
+| CD-ROM release ("Special Edition") | 856,244 | `00956baf8ef9d1cffde9e5e0d85ddc3b9a2e2dff61711523321443cadf545d3c` | `0xA08AF` / `0xA0816` | sites found, not yet tested on hardware |
+| Patched "4 MB" EXE for the CD-ROM release | 835,860 | `30e405ba6e9195bdea6fcfb7316424b3ce15d1c2f405465c14134f8a5aaaf774` | `0x9B907` / `0x9B86E` | sites found, not yet tested on hardware |
 
 CRC-32 of the unpatched files (as printed by `FK6FIX.EXE`): floppy `2D5602DB`, CD-ROM `5E0BCA79`, "4 MB" `A5ADB291`.
-
-A sound problem in the CD-ROM based builds is discussed on [VOGONS](https://www.vogons.org/viewtopic.php?t=59885); it is unrelated to this fix, which does not touch any audio code.
 
 For the standard build, CRC-32 is `2D5602DB` before and `4A08FA59` after patching (`FK6FIX.EXE` prints CRC-32, the Python
 tool prints both); SHA-256 after patching is `ecdecd544ac0d0ad4e677a6269f671980de1759c2b42745820b9b4bdeeff7395`.
@@ -108,7 +106,7 @@ to see it.
 
 ## Tested on
 
-* Real hardware: AMD K6-III+ on an Asus P5A (Super Socket 7), DOS. Before: crash as above. After: the game starts and runs.
+* Real hardware: AMD K6-III+ on an Asus P5A (Super Socket 7), MS-DOS. Before: crash as above. After: the game starts and runs.
 * DOSBox-X: the patched file runs.
 * `FK6FIX.EXE` itself: built and tested automatically in DOSBox against synthetic files (including files larger than
   64 KB) on every change. On real DOS hardware (K6 machine) `--check` was run on all three known builds and reports the
