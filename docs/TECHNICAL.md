@@ -7,9 +7,9 @@ was verified and what was not.
 Numbers refer to the standard build with SHA-256 `8f1ae8d4…06a48971` (816,980 bytes). In that build
 **virtual address = file offset + 0x5450** for everything described here. The CD-ROM build (856,244 bytes) and the "4 MB"
 executable (835,860 bytes) contain the same loader code at other addresses: patch site A always lies exactly `0x99` bytes
-behind the start of the site B pattern; only the absolute addresses inside the instructions differ (which is why the
-patcher treats them as wildcards). In the standard build the loader's file name string sits `0xF8` bytes behind the site B
-pattern; the patcher prints it from there if it finds a plausible 8.3 name, and prints nothing otherwise.
+behind the `74` byte of site B (`0xA1` bytes behind the start of its pattern); only the absolute addresses inside the instructions differ (which is why the
+patcher treats them as wildcards). The loader's file name string sits `0xF8` bytes behind the start of the site B
+pattern in all three builds (it reads `fifa.exe` in each, checked with `--check`); the patcher prints it from there if it finds a plausible 8.3 name, and prints nothing otherwise.
 
 ## 1. The EXE is a Phar Lap TNT program, not DOS/4GW
 
@@ -31,7 +31,7 @@ program's entry point (`0x9C310`).
 
 1. Hooks INT 3 through the extender and triggers it, so execution continues in its own handler (presumably an anti-debugging
    construction: a debugger that owns INT 3 changes what happens next).
-2. Looks for a file with a hard-coded name (`fifa.exe` in the standard build) in the current directory (DOS find-first) and reads it into a buffer. **The EXE must
+2. Looks for a file with a hard-coded name (`fifa.exe` in all three known builds) in the current directory (DOS find-first) and reads it into a buffer. **The EXE must
    therefore keep that name.**
 3. Derives a 32-bit **key** from values that are identical on every machine for a normal run (return address, selectors,
    saved flags, a few dwords of low memory, the current TF/IF flags). A debugger, breakpoint or modified loader changes
@@ -92,7 +92,7 @@ Let `X` be `eax` before the add, `E` the value of `ecx`, `C = 0A5A5A5A5h`, and `
 | 386 / 486 | no | none / 4 | `X + C` = **R** |
 | Pentium | yes | 5 | `X + E`, then `- E + C` = **R** |
 | K6 (assumption, see below) | no | 5 | `X + C`, then `- E + C` = `R + C - E` (wrong) |
-| Cyrix 486 upgrade, reported on VOGONS (unverified) | yes | not > 4 | `X + E` (wrong) |
+| Cyrix 486 upgrade, reported on VOGONS (unverified guess) | yes | 4 (assumed) | `X + E` (wrong) |
 
 The design works only when "modification seen" and "family != 4" go together. The K6 identifies itself as a
 Pentium-class CPU, so the loader subtracts `E` and adds `C` again. The most likely reason for the failure is that the K6
@@ -150,4 +150,4 @@ Not verified
 * The CD-ROM and "4 MB" builds on real hardware (the patch sites were found in both, but they were not run), other
   languages and releases, other K6 variants (K6, K6-2, K6-III), other CPUs (Cyrix,
   Pentium MMX, K5, Pentium Pro/II).
-* `FK6FIX.EXE` on real DOS hardware (it is tested in DOSBox by the workflow).
+* `FK6FIX.EXE` patching on real DOS hardware (`--check` was run on all three builds on a real DOS machine; patching is tested in DOSBox by the workflow).

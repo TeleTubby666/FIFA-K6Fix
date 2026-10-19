@@ -21,7 +21,7 @@ It is a CPU-dependent value in the game's start-up loader (details in [docs/TECH
 ### A. On the DOS machine: `FK6FIX.EXE`
 
 Download `FK6FIX.EXE` from the [Releases](../../releases) page. It is a small 16-bit DOS program (no DOS extender, no
-memory manager, about 20 KB of RAM) that the workflow in this repository builds from `c/fk6fix.c` and tests in DOSBox;
+memory manager) that the workflow in this repository builds from `c/fk6fix.c` and tests in DOSBox;
 its SHA-256 is listed next to it. Copy it next to the game and run:
 
 ```
