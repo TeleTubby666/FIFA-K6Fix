@@ -51,7 +51,10 @@ jobs:
         run: |
           python3 tests/dos_test.py prepare dostest
           cp FK6FIX.EXE dostest/
-          timeout 300 dosbox -c "mount c $PWD/dostest" -c "c:" -c "RUN.BAT" -c "exit"
+          # DOSBox must not be able to hang the job: hard timeout, then look at what it produced
+          timeout -s KILL 120 dosbox -noconsole -c "mount c $PWD/dostest" -c "c:" -c "RUN.BAT" -c "exit" || echo "::warning::dosbox exit code $?"
+          ls -l dostest
+          for f in dostest/R*.TXT dostest/DONE.TXT; do [ -f "$f" ] && { echo "--- $f"; cat "$f"; }; done
           python3 tests/dos_test.py verify dostest
 
       - name: Checksums
