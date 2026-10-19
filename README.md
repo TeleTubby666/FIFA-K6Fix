@@ -70,8 +70,9 @@ For the standard build listed below this is offset `0x96F43` (A) and `0x96EAA` (
 ### Things to know
 
 * **Keep the file name the game expects.** The start-up loader looks for its own EXE by a hard-coded name in the current
-  directory (`fifa.exe` in the standard build), so a renamed copy will most likely not start. The tool prints that name
-  when you run it (also with `--check`).
+  directory (`fifa.exe` in all three known builds, including the CD-ROM and "4 MB" executables), so a renamed copy will most likely
+  not start. If you keep several EXEs side by side (e.g. `FIFACD.EXE`), patch them under their own name and copy the one
+  you want to play over `FIFA.EXE`. The tool prints the expected name when you run it (also with `--check`).
 * The tool refuses to touch anything it does not recognise: wrong file, ambiguous matches, or a file that was already
   modified by something else. Running it twice is harmless ("Both patch sites already carry the fix").
 
@@ -85,6 +86,8 @@ the two patch sites are always `0x99` bytes apart):
 | Standard DOS release (probably the floppy version) | 816,980 | `8f1ae8d4080729df06a8ec4d2fceee820f21b21325b7146f183cc50d06a48971` | `0x96F43` / `0x96EAA` | **tested** on real K6-III+ hardware and in DOSBox-X |
 | CD-ROM release | 856,244 | `00956baf8ef9d1cffde9e5e0d85ddc3b9a2e2dff61711523321443cadf545d3c` | `0xA08AF` / `0xA0816` | sites found, not yet tested on hardware |
 | Community-made "4 MB" executable for the CD-ROM release (its `FILE_ID.DIZ` says it lets the 8 MB version run on a 4 MB machine) | 835,860 | `30e405ba6e9195bdea6fcfb7316424b3ce15d1c2f405465c14134f8a5aaaf774` | `0x9B907` / `0x9B86E` | sites found, not yet tested on hardware |
+
+CRC-32 of the unpatched files (as printed by `FK6FIX.EXE`): standard `2D5602DB`, CD-ROM `5E0BCA79`, "4 MB" `A5ADB291`.
 
 For the standard build, CRC-32 is `2D5602DB` before and `4A08FA59` after patching (`FK6FIX.EXE` prints CRC-32, the Python
 tool prints both); SHA-256 after patching is `ecdecd544ac0d0ad4e677a6269f671980de1759c2b42745820b9b4bdeeff7395`.
@@ -106,7 +109,8 @@ to see it.
 * Real hardware: AMD K6-III+ on an Asus P5A (Super Socket 7), DOS. Before: crash as above. After: the game starts and runs.
 * DOSBox-X: the patched file runs.
 * `FK6FIX.EXE` itself: built and tested automatically in DOSBox against synthetic files (including files larger than
-  64 KB) on every change. Reports from real DOS hardware are welcome.
+  64 KB) on every change. On real DOS hardware (K6 machine) `--check` was run on all three known builds and reports the
+  same offsets as the Python tool. Reports of patching runs from other DOS machines are welcome.
 
 Reports from other CPUs are welcome. The patch should also be harmless on Intel/Cyrix/other CPUs, because it makes the loader
 use the same value as a 486 would on every CPU. A report in the VOGONS forum describes the same message on a Cyrix 486
