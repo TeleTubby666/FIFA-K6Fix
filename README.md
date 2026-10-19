@@ -10,7 +10,7 @@ Abnormal program termination: Memory protection fault
 CS:EIP = 000Fh:0009C4E8h
 ```
 
-That message right after typing `FIFA` (the address can differ, e.g. `000Fh:000A0697h`) is what this fixes.
+That message right after typing `FIFA` (the address differs, e.g. `000Fh:000A0697h` or `000Fh:000AC0D8h`, depending on the memory setup) is what this fixes.
 Lowering the multiplier, disabling the L1/L2 caches or slowing the CPU down does **not** help, because the cause is not speed.
 It is a CPU-dependent value in the game's start-up loader (details in [docs/TECHNICAL.md](docs/TECHNICAL.md)).
 

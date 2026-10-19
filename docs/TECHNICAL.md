@@ -43,9 +43,12 @@ program's entry point (`0x9C310`).
 
 With a wrong key step 4 yields garbage, the CPU executes it and the extender reports
 `Memory protection fault`. The reported `CS:EIP = 000F:0009C4E8` is exactly three bytes into the 20-byte block, i.e. the
-second instruction of the garbage. `000F:000A0697`, seen in another run before the patch, lies beyond the end of the image
-(memory that is only filled at run time). Presumably it is another way garbage can run, depending on machine state;
-neither address appears after the patch.
+second instruction of the garbage. Other addresses were reported for the same crash on a K6-III+ in 2004
+([Planet 3DNow! thread](https://forum.planet3dnow.de/index.php?threads/amd-prozessoren-zu-alten-dos-games-100-kompatibel.137334/)):
+`000F:000A0697` with the default memory setup and `000F:000AC0D8` after switching to different HIMEM/EMM386 drivers. Both lie
+beyond the end of the image (memory that is only filled at run time). That the address changes with the memory
+configuration fits the explanation: garbage code is executed, and where it ends up depends on what happens to be in
+memory. It is not evidence of a second problem. None of these addresses appear after the patch.
 
 ## 3. The two pieces that make the key CPU-dependent
 
@@ -138,7 +141,9 @@ Verified
 * The disassembly of the loader is consistent (all call targets land on instruction boundaries, string and data references
   match the code that uses them).
 * The patched file starts and runs on an AMD K6-III+ (Asus P5A) and in DOSBox-X. The unpatched file crashed on the K6-III+
-  with `CS:EIP = 000F:0009C4E8` (caches off, lowered multiplier); an earlier run showed `000F:000A0697`.
+  with `CS:EIP = 000F:0009C4E8` (caches off, lowered multiplier); earlier runs (2004, see section 2) showed `000F:000A0697` and, with other memory drivers, `000F:000AC0D8`.
+  The same thread reports that an Intel Pentium 200 MMX ran the game, and that the crash stayed with the CPU clocked down
+  to 200 MHz and the L1 cache disabled.
 * The patcher's output is byte-identical to the file that was tested on the hardware. The Python and C versions produce
   identical results; `tests/test_patcher.py` covers patched, unpatched, mixed, ambiguous, foreign-file and existing-backup cases
   on synthetic files.
