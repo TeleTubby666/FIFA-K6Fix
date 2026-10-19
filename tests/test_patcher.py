@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Self-test for fifa_k6_fix.py (and, if a C compiler is found, c/fifa_k6_fix.c).
+Self-test for fifa_k6_fix.py (and, if a C compiler is found, c/fk6fix.c).
 
 No game file is needed: the test builds a synthetic file that only contains
 the two short byte patterns the patcher looks for, surrounded by random bytes.
@@ -34,7 +34,7 @@ def site_a(patched, operand=b"\x9a\xc3\x09\x00", rel=b"\xce\xfe\xff\xff"):
 
 
 def build(patched_a=False, patched_b=False, gap=0x99 - 0x1d, extra_a=0, extra_b=0, seed=1,
-          name=b"fifa.exe\x00"):
+          name=b"fifa.exe\x00", lead=5000):
     """Synthetic 'EXE': MZ header, noise, site B, small gap, site A, noise."""
     rnd = random.Random(seed)
 
@@ -42,7 +42,7 @@ def build(patched_a=False, patched_b=False, gap=0x99 - 0x1d, extra_a=0, extra_b=
         # random bytes that cannot accidentally form one of our patterns
         return bytes(rnd.choice(range(0x20, 0x70)) for _ in range(n))
 
-    parts = [b"MZ", noise(5000)]
+    parts = [b"MZ", noise(lead)]
     for _ in range(extra_b):
         parts += [SITE_B_ORIG, noise(300)]
     parts += [SITE_B_DONE if patched_b else SITE_B_ORIG, noise(gap)]
@@ -178,43 +178,70 @@ class PatcherTests(unittest.TestCase):
 
 @unittest.skipUnless(shutil.which("cc") or shutil.which("gcc"), "no C compiler found")
 class CVersionTests(unittest.TestCase):
-    """The C version must behave exactly like the Python version."""
+    """The C version (the DOS tool) must behave exactly like the Python version.
+
+    It is built twice: normally, and with a 64-byte read buffer so that the patterns
+    are forced across block borders in many different alignments.
+    """
 
     @classmethod
     def setUpClass(cls):
         cls.tmp = tempfile.mkdtemp(prefix="fk6c_")
-        cls.exe = os.path.join(cls.tmp, "fifa_k6_fix_c")
         cc = shutil.which("cc") or shutil.which("gcc")
-        subprocess.check_call([cc, "-std=c89", "-pedantic", "-Wall", "-Wextra", "-O2",
-                               "-o", cls.exe, os.path.join(ROOT, "c", "fifa_k6_fix.c")])
+        src = os.path.join(ROOT, "c", "fk6fix.c")
+        cls.exe = os.path.join(cls.tmp, "fk6fix")
+        cls.exe_small = os.path.join(cls.tmp, "fk6fix_small")
+        flags = ["-std=c89", "-pedantic", "-Wall", "-Wextra", "-O2"]
+        subprocess.check_call([cc] + flags + ["-o", cls.exe, src])
+        subprocess.check_call([cc] + flags + ["-DBUF_SIZE=64u", "-o", cls.exe_small, src])
 
     @classmethod
     def tearDownClass(cls):
         shutil.rmtree(cls.tmp, True)
 
-    def run_c(self, *args):
-        return subprocess.run([self.exe] + list(args), stdout=subprocess.PIPE,
+    def run_c(self, exe, *args):
+        return subprocess.run([exe] + list(args), stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE).returncode
 
-    def test_same_result_as_python(self):
-        for kwargs in ({}, {"gap": 0x40}, {"seed": 7}):
-            data = build(**kwargs)
-            src = os.path.join(self.tmp, "in.exe")
-            out_c = os.path.join(self.tmp, "out_c.exe")
-            out_py = os.path.join(self.tmp, "out_py.exe")
-            for p in (out_c, out_py):
-                if os.path.exists(p):
-                    os.unlink(p)
-            with open(src, "wb") as fh:
-                fh.write(data)
-            self.assertEqual(self.run_c("-o", out_c, src), 0)
-            self.assertEqual(self._py(out_py, src), 0)
-            with open(out_c, "rb") as a, open(out_py, "rb") as b:
-                self.assertEqual(a.read(), b.read())
-
-    def _py(self, out, src):
+    def py_patch(self, out, src):
         return subprocess.run([sys.executable, os.path.join(ROOT, "fifa_k6_fix.py"), "-o", out, src],
                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
+
+    def write(self, name, data):
+        path = os.path.join(self.tmp, name)
+        with open(path, "wb") as fh:
+            fh.write(data)
+        return path
+
+    def read(self, path):
+        with open(path, "rb") as fh:
+            return fh.read()
+
+    def test_same_result_as_python(self):
+        out_py = os.path.join(self.tmp, "out_py.exe")
+        out_c = os.path.join(self.tmp, "out_c.exe")
+        for lead in (5000, 8192 - 40, 8192 - 5, 8192 + 3):
+            for exe in (self.exe, self.exe_small):
+                data = build(lead=lead)
+                src = self.write("in.exe", data)
+                for p in (out_c, out_py):
+                    if os.path.exists(p):
+                        os.unlink(p)
+                self.assertEqual(self.run_c(exe, "-o", out_c, src), 0, lead)
+                self.assertEqual(self.py_patch(out_py, src), 0)
+                self.assertEqual(self.read(out_c), self.read(out_py), lead)
+
+    def test_small_buffer_all_alignments(self):
+        """Site B/A start at every possible offset inside a 64-byte block."""
+        for lead in range(5000, 5064):
+            data = build(lead=lead)
+            src = self.write("al.exe", data)
+            out = os.path.join(self.tmp, "al_out.exe")
+            if os.path.exists(out):
+                os.unlink(out)
+            self.assertEqual(self.run_c(self.exe_small, "-o", out, src), 0, lead)
+            _, a, b, _ = fix.analyse(data)
+            self.assertEqual(self.read(out), fix.apply_patch(data, a, b), lead)
 
     def test_same_refusals_as_python(self):
         cases = {
@@ -223,31 +250,42 @@ class CVersionTests(unittest.TestCase):
             "ambiguous": build(extra_a=1),
             "layout": build(gap=0x2000),
         }
-        for name, data in cases.items():
-            src = os.path.join(self.tmp, name + ".exe")
-            with open(src, "wb") as fh:
-                fh.write(data)
-            self.assertEqual(self.run_c("--check", src), 1, name)
-            with open(src, "rb") as fh:
-                self.assertEqual(fh.read(), data, name)
+        for exe in (self.exe, self.exe_small):
+            for name, data in cases.items():
+                src = self.write(name + ".exe", data)
+                self.assertEqual(self.run_c(exe, "--check", src), 1, name)
+                self.assertEqual(self.read(src), data, name)
 
     def test_c_prints_loader_filename(self):
-        src = os.path.join(self.tmp, "name.exe")
-        with open(src, "wb") as fh:
-            fh.write(build(name=b"fifacd.exe\x00"))
+        src = self.write("name.exe", build(name=b"fifacd.exe\x00"))
         out = subprocess.run([self.exe, "--check", src], stdout=subprocess.PIPE).stdout.decode()
         self.assertIn("'fifacd.exe'", out)
 
+    def test_c_backup_uses_dos_name(self):
+        original = build()
+        src = self.write("GAME.EXE", original)
+        self.assertEqual(self.run_c(self.exe, src), 0)
+        self.assertEqual(self.read(os.path.join(self.tmp, "GAME.ORG")), original)
+        self.assertEqual(fix.analyse(self.read(src))[0], "patched")
+        # a second backup would overwrite the first one: refused, file untouched
+        src2 = self.write("GAME2.EXE", original)
+        self.write("GAME2.ORG", b"precious")
+        self.assertEqual(self.run_c(self.exe, src2), 1)
+        self.assertEqual(self.read(src2), original)
+        self.assertEqual(self.read(os.path.join(self.tmp, "GAME2.ORG")), b"precious")
+
+    def test_c_refuses_same_output_file(self):
+        original = build()
+        src = self.write("SAME.EXE", original)
+        self.assertEqual(self.run_c(self.exe, "-o", src, src), 1)
+        self.assertEqual(self.read(src), original)
+
     def test_c_patched_is_idempotent(self):
-        src = os.path.join(self.tmp, "idem.exe")
-        with open(src, "wb") as fh:
-            fh.write(build())
-        self.assertEqual(self.run_c(src), 0)
-        with open(src, "rb") as fh:
-            first = fh.read()
-        self.assertEqual(self.run_c(src), 0)
-        with open(src, "rb") as fh:
-            self.assertEqual(fh.read(), first)
+        src = self.write("idem.exe", build())
+        self.assertEqual(self.run_c(self.exe, src), 0)
+        first = self.read(src)
+        self.assertEqual(self.run_c(self.exe, src), 0)
+        self.assertEqual(self.read(src), first)
 
 
 if __name__ == "__main__":

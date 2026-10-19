@@ -120,7 +120,7 @@ every CPU. Nothing else in the loader appears to depend on CPU behaviour in the 
 ## 5. Locating the sites in another build
 
 The loader is plain code, so the sites can be found by pattern; absolute addresses differ between builds, the code does
-not. This is what `fifa_k6_fix.py` / `fifa_k6_fix.c` do:
+not. This is what `fifa_k6_fix.py` / `fk6fix.c` (`FK6FIX.EXE`) do:
 
 * Site A: `89 0D xx xx xx 00 05 A5 A5 A5 A5 E8 xx xx xx xx`, exactly one match in the file.
 * Site B: `0F A2 80 E4 0F 80 FC 04 74 10 8B 44 24 1C 29 44 24 20 81 44 24 20 A5 A5 A5 A5 9D 61 C3`, exactly one match.
@@ -150,4 +150,4 @@ Not verified
 * The CD-ROM and "4 MB" builds on real hardware (the patch sites were found in both, but they were not run), other
   languages and releases, other K6 variants (K6, K6-2, K6-III), other CPUs (Cyrix,
   Pentium MMX, K5, Pentium Pro/II).
-* The DOS builds of the C version.
+* `FK6FIX.EXE` on real DOS hardware (it is tested in DOSBox by the workflow).

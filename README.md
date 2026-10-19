@@ -16,44 +16,47 @@ It is a CPU-dependent value in the game's start-up loader (details in [docs/TECH
 
 ## Quick start
 
-1. **Make a copy of your game folder** (the patcher also makes a backup, but be careful anyway).
-2. Install [Python 3](https://www.python.org/downloads/) (3.8 or newer, Windows / macOS / Linux), then run:
+**Make a copy of your game folder first** (the tool also makes a backup, but be careful anyway). Then pick one way:
 
-   ```
-   python fifa_k6_fix.py "path/to/FIFA.EXE"
-   ```
+### A. On the DOS machine: `FK6FIX.EXE`
 
-   The original is kept as `FIFA.EXE.orig`.
-3. Copy the patched game folder to your DOS machine and start the game as usual.
+Download `FK6FIX.EXE` from the [Releases](../../releases) page. It is a small 16-bit DOS program (no DOS extender, no
+memory manager, about 20 KB of RAM) that the workflow in this repository builds from `c/fk6fix.c` and tests in DOSBox;
+its SHA-256 is listed next to it. Copy it next to the game and run:
 
-   **Keep the file name the game expects.** The start-up loader looks for its own EXE by a hard-coded name in the
-   current directory (`fifa.exe` in the standard build), so a renamed copy will most likely not start. The patcher prints
-   that name when you run it (also with `--check`).
+```
+FK6FIX FIFA.EXE
+```
 
-Useful options:
+The original is kept as `FIFA.ORG`. Then start the game as usual.
 
 | Command | Effect |
 |---|---|
-| `python fifa_k6_fix.py --check FIFA.EXE` | Only report whether the file needs the fix. Changes nothing. |
-| `python fifa_k6_fix.py -o FIFA_K6.EXE FIFA.EXE` | Write a patched copy and leave the original untouched. |
-| `python fifa_k6_fix.py --no-backup FIFA.EXE` | Patch in place without creating `FIFA.EXE.orig`. |
+| `FK6FIX --check FIFA.EXE` | Only report whether the file needs the fix. Changes nothing. |
+| `FK6FIX -o FIFAK6.EXE FIFA.EXE` | Write a patched copy and leave the original untouched. |
+| `FK6FIX --no-backup FIFA.EXE` | Patch in place without creating `FIFA.ORG`. |
 
-The tool refuses to touch anything it does not recognise: wrong file, ambiguous matches, or a file that was already
-modified by something else. Running it twice is harmless ("Both patch sites already carry the fix").
+### B. On a modern computer: Python
 
-### Patching directly on the DOS machine
+Install [Python 3](https://www.python.org/downloads/) (3.8 or newer, Windows / macOS / Linux), then run:
 
-`c/fifa_k6_fix.c` is the same tool in portable C89 (it behaves exactly like the Python version, which the test suite
-checks). It needs a **32-bit** compiler because it reads the whole EXE (about 800 KB) into memory:
+```
+python fifa_k6_fix.py "path/to/FIFA.EXE"
+```
 
-* Open Watcom: `wcl386 -bt=dos -l=dos4g fifa_k6_fix.c`
-* DJGPP: `gcc -O2 -o fk6fix.exe fifa_k6_fix.c`
-* any modern system: `cc -O2 -o fifa_k6_fix fifa_k6_fix.c`
+The original is kept as `FIFA.EXE.orig`. Same options as above (`--check`, `-o FILE`, `--no-backup`). Copy the patched game
+folder to your DOS machine afterwards. The Python version also prints the SHA-256 of the file.
 
-On plain DOS the file names must fit 8.3, so rename the source to e.g. `FK6FIX.C` first. The DOS builds are not
-tested by the author, only the Linux build is. The C version prints a CRC-32 instead of SHA-256.
+### C. Build `FK6FIX.EXE` yourself
 
-### Patching by hand (hex editor)
+* [Open Watcom](https://github.com/open-watcom/open-watcom-v2), 16-bit DOS target (what the workflow uses):
+  `wcl -zq -bt=dos -ms -os -fe=FK6FIX.EXE c/fk6fix.c`
+* any modern system: `cc -std=c89 -O2 -o fk6fix c/fk6fix.c`
+
+The source is plain C89 and reads the file in small blocks, so other DOS compilers should work too; only Open Watcom is
+used and tested by the author.
+
+### D. By hand (hex editor)
 
 Search for these two byte patterns in `FIFA.EXE` (`??` = any byte, each must occur exactly once):
 
@@ -62,12 +65,15 @@ Search for these two byte patterns in `FIFA.EXE` (`??` = any byte, each must occ
 | A | `89 0D ?? ?? ?? 00 05 A5 A5 A5 A5 E8` | replace the first six bytes `89 0D ?? ?? ?? 00` with `90 90 90 90 90 90` |
 | B | `0F A2 80 E4 0F 80 FC 04 74 10 8B 44 24 1C` | replace the `74` (9th byte) with `EB` |
 
-For the build listed below this is offset `0x96F43` (A) and `0x96EAA` (B).
+For the standard build listed below this is offset `0x96F43` (A) and `0x96EAA` (B).
 
-### IPS patch
+### Things to know
 
-`fifa_k6_fix_v1.ips` contains the same two edits at fixed offsets. **Use it only on the exact build listed below**,
-an IPS patch cannot check what it is applied to. For everything else use the patcher.
+* **Keep the file name the game expects.** The start-up loader looks for its own EXE by a hard-coded name in the current
+  directory (`fifa.exe` in the standard build), so a renamed copy will most likely not start. The tool prints that name
+  when you run it (also with `--check`).
+* The tool refuses to touch anything it does not recognise: wrong file, ambiguous matches, or a file that was already
+  modified by something else. Running it twice is harmless ("Both patch sites already carry the fix").
 
 ## Known builds
 
@@ -80,8 +86,8 @@ the two patch sites are always `0x99` bytes apart):
 | CD-ROM release | 856,244 | `00956baf8ef9d1cffde9e5e0d85ddc3b9a2e2dff61711523321443cadf545d3c` | `0xA08AF` / `0xA0816` | sites found, not yet tested on hardware |
 | Community-made "4 MB" executable for the CD-ROM release (its `FILE_ID.DIZ` says it lets the 8 MB version run on a 4 MB machine) | 835,860 | `30e405ba6e9195bdea6fcfb7316424b3ce15d1c2f405465c14134f8a5aaaf774` | `0x9B907` / `0x9B86E` | sites found, not yet tested on hardware |
 
-For the standard build, CRC-32 is `2D5602DB` before and `4A08FA59` after patching (the C version prints CRC-32 instead of
-SHA-256); SHA-256 after patching is `ecdecd544ac0d0ad4e677a6269f671980de1759c2b42745820b9b4bdeeff7395`.
+For the standard build, CRC-32 is `2D5602DB` before and `4A08FA59` after patching (`FK6FIX.EXE` prints CRC-32, the Python
+tool prints both); SHA-256 after patching is `ecdecd544ac0d0ad4e677a6269f671980de1759c2b42745820b9b4bdeeff7395`.
 
 The patcher finds its targets by byte pattern, not by fixed offset, so it also works on other builds of the game as long
 as their loader is built the same way. If you have another version (other languages, other releases, ...), run `--check`
@@ -99,6 +105,8 @@ to see it.
 
 * Real hardware: AMD K6-III+ on an Asus P5A (Super Socket 7), DOS. Before: crash as above. After: the game starts and runs.
 * DOSBox-X: the patched file runs.
+* `FK6FIX.EXE` itself: built and tested automatically in DOSBox against synthetic files (including files larger than
+  64 KB) on every change. Reports from real DOS hardware are welcome.
 
 Reports from other CPUs are welcome. The patch should also be harmless on Intel/Cyrix/other CPUs, because it makes the loader
 use the same value as a 486 would on every CPU. A report in the VOGONS forum describes the same message on a Cyrix 486
@@ -117,18 +125,20 @@ disables the compensation (site B), so every CPU gets the key a 486 gets. Full e
 The patch does **not** remove or bypass any licence check, serial number, manual question or disc check, and it does not
 change the game itself.
 
-## Running the self-test
+## Running the self-tests
 
 ```
 python tests/test_patcher.py
 ```
 
 The test builds synthetic files that contain only the short patterns and needs no game file. If a C compiler is installed,
-it also checks that the C version produces the same output as the Python version.
+it also checks that the C version (the source of `FK6FIX.EXE`) produces the same output as the Python version, including a
+build with a 64-byte read buffer that forces the patterns across block borders. `tests/dos_test.py` plus
+`.github/workflows/build.yml` run the real DOS executable in DOSBox.
 
 ## Undo
 
-Copy `FIFA.EXE.orig` back over `FIFA.EXE`.
+Copy the backup back over the game EXE: `FIFA.ORG` (DOS tool) or `FIFA.EXE.orig` (Python tool).
 
 ## Disclaimer and licence
 
@@ -141,5 +151,7 @@ The tool and its documentation are released into the public domain under [The Un
 
 ## Changelog
 
+* **1.2**: `FK6FIX.EXE`, a 16-bit DOS version of the tool (`c/fk6fix.c`, built and tested by the workflow); the Python tool
+  prints CRC-32 as well. The IPS patch was removed: it only fit one build and could not check what it was applied to.
 * **1.1**: prints the file name the loader looks for; CD-ROM and "4 MB" builds added to the list of recognised builds.
 * **1.0**: first release.

@@ -1,0 +1,84 @@
+name: build-and-test
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python-tests:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        python: ['3.8', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Self-test (Python tool, C tool, DOS tool logic)
+        run: python tests/test_patcher.py
+
+  dos-build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: open-watcom/setup-watcom@v1
+        with:
+          version: "2.0"
+          target: "dos"
+
+      - name: Build the 16-bit DOS executable
+        run: |
+          wcl -zq -bt=dos -ms -os -fe=FK6FIX.EXE c/fk6fix.c
+          ls -l FK6FIX.EXE
+
+      - name: Install DOSBox
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dosbox
+
+      - name: Run FK6FIX.EXE in DOSBox against synthetic test files
+        env:
+          SDL_VIDEODRIVER: dummy
+          SDL_AUDIODRIVER: dummy
+        run: |
+          python3 tests/dos_test.py prepare dostest
+          cp FK6FIX.EXE dostest/
+          timeout 300 dosbox -c "mount c $PWD/dostest" -c "c:" -c "RUN.BAT" -c "exit"
+          python3 tests/dos_test.py verify dostest
+
+      - name: Checksums
+        run: sha256sum FK6FIX.EXE | tee SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FK6FIX-dos
+          path: |
+            FK6FIX.EXE
+            SHA256SUMS.txt
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [python-tests, dos-build]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: FK6FIX-dos
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" FK6FIX.EXE SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
+            --notes "FK6FIX.EXE is the DOS patcher (16-bit, no extender needed), built from this tag by the workflow and tested in DOSBox. It contains no game files. See README.md for usage; SHA-256 is in SHA256SUMS.txt."

@@ -25,8 +25,9 @@ import os
 import re
 import sys
 import tempfile
+import zlib
 
-VERSION = "1.1"
+VERSION = "1.2"
 
 ANY3 = rb"[\x00-\xff]{3}"
 ANY4 = rb"[\x00-\xff]{4}"
@@ -180,6 +181,7 @@ def main(argv=None):
     print("File   : %s" % args.exe)
     print("Size   : %d bytes" % len(data))
     print("SHA-256: %s" % sha256(data))
+    print("CRC-32 : %08X" % (zlib.crc32(data) & 0xFFFFFFFF))
     if data[:2] != b"MZ":
         print("warning: file does not start with 'MZ', it is not a DOS executable.")
 
@@ -240,6 +242,7 @@ def main(argv=None):
     write_atomic(target, patched)
     print("Patched: %s  (7 bytes changed)" % target)
     print("SHA-256: %s" % sha256(patched))
+    print("CRC-32 : %08X" % (zlib.crc32(patched) & 0xFFFFFFFF))
     return 0
 
 
