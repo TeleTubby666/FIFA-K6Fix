@@ -4,8 +4,12 @@ How the start-up crash on AMD K6 CPUs comes about and what the patch changes.
 All of this was derived by disassembling the loader inside the EXE (no source code was available). Section 6 lists what
 was verified and what was not.
 
-Numbers refer to the build with SHA-256 `8f1ae8d4…06a48971` (816,980 bytes). In that build
-**virtual address = file offset + 0x5450** for everything described here.
+Numbers refer to the standard build with SHA-256 `8f1ae8d4…06a48971` (816,980 bytes). In that build
+**virtual address = file offset + 0x5450** for everything described here. The CD-ROM build (856,244 bytes) and the community "4 MB"
+executable (835,860 bytes) contain the same loader code at other addresses: patch site A always lies exactly `0x99` bytes
+behind the start of the site B pattern; only the absolute addresses inside the instructions differ (which is why the
+patcher treats them as wildcards). In the standard build the loader's file name string sits `0xF8` bytes behind the site B
+pattern; the patcher prints it from there if it finds a plausible 8.3 name, and prints nothing otherwise.
 
 ## 1. The EXE is a Phar Lap TNT program, not DOS/4GW
 
@@ -27,7 +31,7 @@ program's entry point (`0x9C310`).
 
 1. Hooks INT 3 through the extender and triggers it, so execution continues in its own handler (presumably an anti-debugging
    construction: a debugger that owns INT 3 changes what happens next).
-2. Looks for a file named `fifa.exe` in the current directory (DOS find-first) and reads it into a buffer. **The EXE must
+2. Looks for a file with a hard-coded name (`fifa.exe` in the standard build) in the current directory (DOS find-first) and reads it into a buffer. **The EXE must
    therefore keep that name.**
 3. Derives a 32-bit **key** from values that are identical on every machine for a normal run (return address, selectors,
    saved flags, a few dwords of low memory, the current TF/IF flags). A debugger, breakpoint or modified loader changes
@@ -143,6 +147,7 @@ Not verified
 
 * The actual K6 behaviour at site A (it is the explanation that fits, not a measurement). A small test program that stores
   into the next instruction and reports the result would settle it.
-* Other builds of the game (CD-ROM, 8 MB, other languages), other K6 variants (K6, K6-2, K6-III), other CPUs (Cyrix,
+* The CD-ROM and "4 MB" builds on real hardware (the patch sites were found in both, but they were not run), other
+  languages and releases, other K6 variants (K6, K6-2, K6-III), other CPUs (Cyrix,
   Pentium MMX, K5, Pentium Pro/II).
 * The DOS builds of the C version.

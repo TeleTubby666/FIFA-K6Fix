@@ -33,7 +33,8 @@ def site_a(patched, operand=b"\x9a\xc3\x09\x00", rel=b"\xce\xfe\xff\xff"):
     return store + b"\x05\xa5\xa5\xa5\xa5\xe8" + rel
 
 
-def build(patched_a=False, patched_b=False, gap=0x99 - 0x1d, extra_a=0, extra_b=0, seed=1):
+def build(patched_a=False, patched_b=False, gap=0x99 - 0x1d, extra_a=0, extra_b=0, seed=1,
+          name=b"fifa.exe\x00"):
     """Synthetic 'EXE': MZ header, noise, site B, small gap, site A, noise."""
     rnd = random.Random(seed)
 
@@ -46,6 +47,7 @@ def build(patched_a=False, patched_b=False, gap=0x99 - 0x1d, extra_a=0, extra_b=
         parts += [SITE_B_ORIG, noise(300)]
     parts += [SITE_B_DONE if patched_b else SITE_B_ORIG, noise(gap)]
     parts += [site_a(patched_a)]
+    parts += [noise(0xF8 - 0xA9), name]      # the loader stores its file name 0xF8 bytes behind site B
     for _ in range(extra_a):
         parts += [noise(300), site_a(False)]
     parts += [noise(7000)]
@@ -92,6 +94,15 @@ class PatcherTests(unittest.TestCase):
         # another build of the game has other absolute addresses
         data = build().replace(b"\x89\x0d\x9a\xc3\x09\x00", b"\x89\x0d\x12\x34\x0b\x00")
         self.assertEqual(fix.analyse(data)[0], "unpatched")
+
+    def test_loader_filename(self):
+        data = build(name=b"fifacd.exe\x00")
+        _, a, b, _ = fix.analyse(data)
+        self.assertEqual(fix.loader_filename(data, b), "fifacd.exe")
+        self.assertEqual(fix.loader_filename(build(name=b"FIFA4MB.EXE\x00"), b), "FIFA4MB.EXE")
+        self.assertIsNone(fix.loader_filename(build(name=b"TOOLONGNAME.EXE\x00"), b))  # not an 8.3 name
+        self.assertIsNone(fix.loader_filename(build(name=b"\x00" * 12), b))
+        self.assertIsNone(fix.loader_filename(build(name=b"no name here"), b))
 
     # ----- patch result --------------------------------------------------
     def test_exactly_seven_bytes_change(self):
@@ -219,6 +230,13 @@ class CVersionTests(unittest.TestCase):
             self.assertEqual(self.run_c("--check", src), 1, name)
             with open(src, "rb") as fh:
                 self.assertEqual(fh.read(), data, name)
+
+    def test_c_prints_loader_filename(self):
+        src = os.path.join(self.tmp, "name.exe")
+        with open(src, "wb") as fh:
+            fh.write(build(name=b"fifacd.exe\x00"))
+        out = subprocess.run([self.exe, "--check", src], stdout=subprocess.PIPE).stdout.decode()
+        self.assertIn("'fifacd.exe'", out)
 
     def test_c_patched_is_idempotent(self):
         src = os.path.join(self.tmp, "idem.exe")

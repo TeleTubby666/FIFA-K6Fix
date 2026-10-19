@@ -26,8 +26,9 @@ It is a CPU-dependent value in the game's start-up loader (details in [docs/TECH
    The original is kept as `FIFA.EXE.orig`.
 3. Copy the patched game folder to your DOS machine and start the game as usual.
 
-   **Keep the file name `FIFA.EXE`.** The start-up loader looks for a file with exactly that name in the current
-   directory, so a renamed copy will most likely not start.
+   **Keep the file name the game expects.** The start-up loader looks for its own EXE by a hard-coded name in the
+   current directory (`fifa.exe` in the standard build), so a renamed copy will most likely not start. The patcher prints
+   that name when you run it (also with `--check`).
 
 Useful options:
 
@@ -70,21 +71,29 @@ an IPS patch cannot check what it is applied to. For everything else use the pat
 
 ## Known builds
 
-| Size | SHA-256 | CRC-32 | Status |
-|---|---|---|---|
-| 816,980 bytes | `8f1ae8d4080729df06a8ec4d2fceee820f21b21325b7146f183cc50d06a48971` | `2D5602DB` | tested |
+The patcher recognises these builds (all three were checked with `--check`; the loader is the same code block in each,
+the two patch sites are always `0x99` bytes apart):
 
-SHA-256 of that build after patching: `ecdecd544ac0d0ad4e677a6269f671980de1759c2b42745820b9b4bdeeff7395`
-(CRC-32 `4A08FA59`).
+| Build | Size | SHA-256 | Patch sites (file offset A / B) | Status |
+|---|---|---|---|---|
+| Standard DOS release (probably the floppy version) | 816,980 | `8f1ae8d4080729df06a8ec4d2fceee820f21b21325b7146f183cc50d06a48971` | `0x96F43` / `0x96EAA` | **tested** on real K6-III+ hardware and in DOSBox-X |
+| CD-ROM release | 856,244 | `00956baf8ef9d1cffde9e5e0d85ddc3b9a2e2dff61711523321443cadf545d3c` | `0xA08AF` / `0xA0816` | sites found, not yet tested on hardware |
+| Community-made "4 MB" executable for the CD-ROM release (its `FILE_ID.DIZ` says it lets the 8 MB version run on a 4 MB machine) | 835,860 | `30e405ba6e9195bdea6fcfb7316424b3ce15d1c2f405465c14134f8a5aaaf774` | `0x9B907` / `0x9B86E` | sites found, not yet tested on hardware |
+
+For the standard build, CRC-32 is `2D5602DB` before and `4A08FA59` after patching (the C version prints CRC-32 instead of
+SHA-256); SHA-256 after patching is `ecdecd544ac0d0ad4e677a6269f671980de1759c2b42745820b9b4bdeeff7395`.
 
 The patcher finds its targets by byte pattern, not by fixed offset, so it also works on other builds of the game as long
-as their loader is built the same way. If you have another version (CD-ROM release, 8 MB release, other languages, ...),
-run `--check` on it:
+as their loader is built the same way. If you have another version (other languages, other releases, ...), run `--check`
+on it:
 
 * **"file needs the fix"** or **"already carry the fix"**: it works, please report the size, SHA-256 and the result so the
-  table can be extended.
+  table can be extended. Reports from real hardware (does the patched file start?) are the most valuable ones.
 * **"loader signature was not found"**: that build differs. Please report its size and SHA-256 (never upload the game
   itself).
+
+The tool also prints the file name the loader looks for (see "Keep the file name" above); run `--check` once on your copy
+to see it.
 
 ## Tested on
 
@@ -132,4 +141,5 @@ The tool and its documentation are released into the public domain under [The Un
 
 ## Changelog
 
+* **1.1**: prints the file name the loader looks for; CD-ROM and "4 MB" builds added to the list of recognised builds.
 * **1.0**: first release.

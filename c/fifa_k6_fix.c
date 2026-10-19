@@ -23,7 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define VERSION "1.0"
+#define VERSION "1.1"
 #define MAX_SIZE 67108864UL   /* 64 MB */
 #define MAX_DISTANCE 0x400UL
 #define A_LEN 6
@@ -132,6 +132,37 @@ static int analyse(const unsigned char *d, unsigned long n,
            "0x%lX, site B at 0x%lX). The file was modified by something else.\n",
            *a_off, *b_off + B_JUMP_OFFSET);
     return S_MIXED;
+}
+
+/* Informational only: the loader looks for its own EXE by a hard-coded name that is stored
+ * 0xF8 bytes behind the start of site B's pattern (same loader blob in all known builds). */
+#define NAME_OFFSET_FROM_B 0xF8UL
+
+static void print_loader_name(const unsigned char *d, unsigned long n, unsigned long b_off)
+{
+    unsigned long start = b_off + NAME_OFFSET_FROM_B;
+    char name[16];
+    unsigned i = 0;
+    unsigned char c;
+
+    if (start + 14 > n)
+        return;
+    while (i < 8) {
+        c = d[start + i];
+        if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+              (c >= '0' && c <= '9') || c == '_' || c == '-'))
+            break;
+        name[i] = (char)c;
+        i++;
+    }
+    if (i == 0 || d[start + i] != '.')
+        return;
+    if ((d[start + i + 1] | 0x20) != 'e' || (d[start + i + 2] | 0x20) != 'x' ||
+        (d[start + i + 3] | 0x20) != 'e' || d[start + i + 4] != 0)
+        return;
+    name[i] = '\0';
+    printf("The loader looks for a file named '%s.exe' in the current directory, "
+           "so the EXE must keep exactly this name.\n", name);
 }
 
 static unsigned char *read_file(const char *path, unsigned long *size)
@@ -244,6 +275,8 @@ int main(int argc, char **argv)
         printf("warning: file does not start with 'MZ', it is not a DOS executable.\n");
 
     state = analyse(data, size, &a_off, &b_off);
+    if (state == S_UNPATCHED || state == S_PATCHED)
+        print_loader_name(data, size, b_off);
 
     if (state == S_MIXED) {
         printf("\nNothing was changed. Restore the original FIFA.EXE (for example from the\n"

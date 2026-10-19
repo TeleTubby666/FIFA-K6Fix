@@ -26,7 +26,7 @@ import re
 import sys
 import tempfile
 
-VERSION = "1.0"
+VERSION = "1.1"
 
 ANY3 = rb"[\x00-\xff]{3}"
 ANY4 = rb"[\x00-\xff]{4}"
@@ -64,6 +64,19 @@ B_JUMP_OFFSET = len(b"\x0f\xa2\x80\xe4\x0f\x80\xfc\x04")  # offset of the 74/EB 
 
 # Site A must follow site B closely (same loader blob).
 MAX_DISTANCE = 0x400
+
+
+# Informational only: the loader looks for its own EXE by a hard-coded name that is stored
+# 0xF8 bytes behind the start of site B's pattern (same loader blob in all known builds).
+NAME_OFFSET_FROM_B = 0xF8
+NAME_RE = re.compile(rb"[A-Za-z0-9_\-]{1,8}\.[Ee][Xx][Ee]\x00")
+
+
+def loader_filename(data, b_off):
+    """Return the file name the loader searches for, or None if it cannot be read plausibly."""
+    start = b_off + NAME_OFFSET_FROM_B
+    m = NAME_RE.match(data[start:start + 14])
+    return m.group()[:-1].decode("ascii") if m else None
 
 
 def find_all(regex, data):
@@ -172,6 +185,11 @@ def main(argv=None):
 
     state, a_off, b_off, msg = analyse(data)
     print(msg)
+    if state in ("unpatched", "patched"):
+        name = loader_filename(data, b_off)
+        if name:
+            print("The loader looks for a file named '%s' in the current directory, "
+                  "so the EXE must keep exactly this name." % name)
 
     if state == "mixed":
         print("\nNothing was changed. Restore the original FIFA.EXE (for example from the "
