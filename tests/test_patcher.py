@@ -1,0 +1,236 @@
+#!/usr/bin/env python3
+"""
+Self-test for fifa_k6_fix.py (and, if a C compiler is found, c/fifa_k6_fix.c).
+
+No game file is needed: the test builds a synthetic file that only contains
+the two short byte patterns the patcher looks for, surrounded by random bytes.
+
+    python tests/test_patcher.py
+"""
+
+import os
+import random
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
+sys.path.insert(0, ROOT)
+
+import fifa_k6_fix as fix  # noqa: E402
+
+TAIL_B = bytes.fromhex("10 8B 44 24 1C 29 44 24 20 81 44 24 20 A5 A5 A5 A5 9D 61 C3")
+HEAD_B = bytes.fromhex("0F A2 80 E4 0F 80 FC 04")
+SITE_B_ORIG = HEAD_B + b"\x74" + TAIL_B
+SITE_B_DONE = HEAD_B + b"\xEB" + TAIL_B
+
+
+def site_a(patched, operand=b"\x9a\xc3\x09\x00", rel=b"\xce\xfe\xff\xff"):
+    store = b"\x90" * 6 if patched else b"\x89\x0d" + operand
+    return store + b"\x05\xa5\xa5\xa5\xa5\xe8" + rel
+
+
+def build(patched_a=False, patched_b=False, gap=0x99 - 0x1d, extra_a=0, extra_b=0, seed=1):
+    """Synthetic 'EXE': MZ header, noise, site B, small gap, site A, noise."""
+    rnd = random.Random(seed)
+
+    def noise(n):
+        # random bytes that cannot accidentally form one of our patterns
+        return bytes(rnd.choice(range(0x20, 0x70)) for _ in range(n))
+
+    parts = [b"MZ", noise(5000)]
+    for _ in range(extra_b):
+        parts += [SITE_B_ORIG, noise(300)]
+    parts += [SITE_B_DONE if patched_b else SITE_B_ORIG, noise(gap)]
+    parts += [site_a(patched_a)]
+    for _ in range(extra_a):
+        parts += [noise(300), site_a(False)]
+    parts += [noise(7000)]
+    return b"".join(parts)
+
+
+class PatcherTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="fk6test_")
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+
+    def write(self, name, data):
+        path = os.path.join(self.tmp, name)
+        with open(path, "wb") as fh:
+            fh.write(data)
+        return path
+
+    def read(self, path):
+        with open(path, "rb") as fh:
+            return fh.read()
+
+    # ----- analysis ------------------------------------------------------
+    def test_unpatched_detected(self):
+        self.assertEqual(fix.analyse(build())[0], "unpatched")
+
+    def test_patched_detected(self):
+        self.assertEqual(fix.analyse(build(True, True))[0], "patched")
+
+    def test_mixed_detected(self):
+        self.assertEqual(fix.analyse(build(True, False))[0], "mixed")
+        self.assertEqual(fix.analyse(build(False, True))[0], "mixed")
+
+    def test_unknown_when_missing(self):
+        self.assertEqual(fix.analyse(b"MZ" + bytes(10000))[0], "unknown")
+
+    def test_unknown_when_ambiguous(self):
+        self.assertEqual(fix.analyse(build(extra_a=1))[0], "unknown")
+        self.assertEqual(fix.analyse(build(extra_b=1))[0], "unknown")
+
+    def test_unknown_when_layout_wrong(self):
+        self.assertEqual(fix.analyse(build(gap=0x2000))[0], "unknown")
+
+    def test_address_operand_is_wildcard(self):
+        # another build of the game has other absolute addresses
+        data = build().replace(b"\x89\x0d\x9a\xc3\x09\x00", b"\x89\x0d\x12\x34\x0b\x00")
+        self.assertEqual(fix.analyse(data)[0], "unpatched")
+
+    # ----- patch result --------------------------------------------------
+    def test_exactly_seven_bytes_change(self):
+        data = build()
+        _, a, b, _ = fix.analyse(data)
+        out = fix.apply_patch(data, a, b)
+        diff = [i for i in range(len(data)) if data[i] != out[i]]
+        self.assertEqual(len(out), len(data))
+        self.assertEqual(len(diff), 7)
+        self.assertEqual(out[a:a + 6], b"\x90" * 6)
+        self.assertEqual(out[b + 8], 0xEB)
+        self.assertEqual(fix.analyse(out)[0], "patched")
+
+    # ----- command line --------------------------------------------------
+    def run_cli(self, *args):
+        saved = sys.stdout
+        try:
+            with open(os.devnull, "w") as null:
+                sys.stdout = null
+                saved_err = sys.stderr
+                sys.stderr = null
+                try:
+                    return fix.main(list(args))
+                finally:
+                    sys.stderr = saved_err
+        finally:
+            sys.stdout = saved
+
+    def test_cli_inplace_with_backup(self):
+        original = build()
+        path = self.write("GAME.EXE", original)
+        self.assertEqual(self.run_cli(path), 0)
+        self.assertEqual(self.read(path + ".orig"), original)
+        self.assertEqual(fix.analyse(self.read(path))[0], "patched")
+        # second run: nothing to do, still success, backup untouched
+        self.assertEqual(self.run_cli(path), 0)
+        self.assertEqual(self.read(path + ".orig"), original)
+
+    def test_cli_check_changes_nothing(self):
+        original = build()
+        path = self.write("GAME.EXE", original)
+        self.assertEqual(self.run_cli("--check", path), 0)
+        self.assertEqual(self.read(path), original)
+        self.assertFalse(os.path.exists(path + ".orig"))
+
+    def test_cli_output_file(self):
+        original = build()
+        path = self.write("GAME.EXE", original)
+        out = os.path.join(self.tmp, "OUT.EXE")
+        self.assertEqual(self.run_cli("-o", out, path), 0)
+        self.assertEqual(self.read(path), original)
+        self.assertEqual(fix.analyse(self.read(out))[0], "patched")
+
+    def test_cli_refuses_existing_backup(self):
+        original = build()
+        path = self.write("GAME.EXE", original)
+        self.write("GAME.EXE.orig", b"precious")
+        self.assertEqual(self.run_cli(path), 1)
+        self.assertEqual(self.read(path), original)
+        self.assertEqual(self.read(path + ".orig"), b"precious")
+
+    def test_cli_refuses_foreign_and_mixed(self):
+        junk = self.write("JUNK.BIN", os.urandom(5000))
+        self.assertEqual(self.run_cli(junk), 1)
+        mixed_data = build(True, False)
+        mixed = self.write("MIXED.EXE", mixed_data)
+        self.assertEqual(self.run_cli(mixed), 1)
+        self.assertEqual(self.read(mixed), mixed_data)
+
+    def test_cli_missing_file(self):
+        self.assertEqual(self.run_cli(os.path.join(self.tmp, "nope.exe")), 1)
+
+
+@unittest.skipUnless(shutil.which("cc") or shutil.which("gcc"), "no C compiler found")
+class CVersionTests(unittest.TestCase):
+    """The C version must behave exactly like the Python version."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp(prefix="fk6c_")
+        cls.exe = os.path.join(cls.tmp, "fifa_k6_fix_c")
+        cc = shutil.which("cc") or shutil.which("gcc")
+        subprocess.check_call([cc, "-std=c89", "-pedantic", "-Wall", "-Wextra", "-O2",
+                               "-o", cls.exe, os.path.join(ROOT, "c", "fifa_k6_fix.c")])
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, True)
+
+    def run_c(self, *args):
+        return subprocess.run([self.exe] + list(args), stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE).returncode
+
+    def test_same_result_as_python(self):
+        for kwargs in ({}, {"gap": 0x40}, {"seed": 7}):
+            data = build(**kwargs)
+            src = os.path.join(self.tmp, "in.exe")
+            out_c = os.path.join(self.tmp, "out_c.exe")
+            out_py = os.path.join(self.tmp, "out_py.exe")
+            for p in (out_c, out_py):
+                if os.path.exists(p):
+                    os.unlink(p)
+            with open(src, "wb") as fh:
+                fh.write(data)
+            self.assertEqual(self.run_c("-o", out_c, src), 0)
+            self.assertEqual(self._py(out_py, src), 0)
+            with open(out_c, "rb") as a, open(out_py, "rb") as b:
+                self.assertEqual(a.read(), b.read())
+
+    def _py(self, out, src):
+        return subprocess.run([sys.executable, os.path.join(ROOT, "fifa_k6_fix.py"), "-o", out, src],
+                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
+
+    def test_same_refusals_as_python(self):
+        cases = {
+            "junk": os.urandom(4000),
+            "mixed": build(True, False),
+            "ambiguous": build(extra_a=1),
+            "layout": build(gap=0x2000),
+        }
+        for name, data in cases.items():
+            src = os.path.join(self.tmp, name + ".exe")
+            with open(src, "wb") as fh:
+                fh.write(data)
+            self.assertEqual(self.run_c("--check", src), 1, name)
+            with open(src, "rb") as fh:
+                self.assertEqual(fh.read(), data, name)
+
+    def test_c_patched_is_idempotent(self):
+        src = os.path.join(self.tmp, "idem.exe")
+        with open(src, "wb") as fh:
+            fh.write(build())
+        self.assertEqual(self.run_c(src), 0)
+        with open(src, "rb") as fh:
+            first = fh.read()
+        self.assertEqual(self.run_c(src), 0)
+        with open(src, "rb") as fh:
+            self.assertEqual(fh.read(), first)
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

@@ -1,0 +1,3 @@
+*.ips binary
+*.exe binary
+* text=auto
