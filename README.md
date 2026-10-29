@@ -124,16 +124,10 @@ crash; the following problems were seen on the test machine **after** patching a
 * **Hard freeze right after starting the game (only a reset helps)**: seen with the original Windows MS-DOS `MSCDEX`
   together with `VIDE-CDD`. Using `SHSUCDX` (with the same `VIDE-CDD` driver) instead of `MSCDEX` fixed it. If
   `DIR D:` does not work in plain DOS, the game cannot work either; fix the CD driver first.
-* **"Insufficient free conventional memory" (CD-ROM build)**: caused by the sound set-up in `FIFA.CFG`, not by the CD
-  and not by the patch. With sound disabled the game got past this point:
-
-  ```
-  SFX -1,FFFFh,-1,-1,-1
-  MUSIC -1,FFFFh,-1,-1,-1
-  ```
-
-  Re-enable your sound card afterwards (in `CONFIG.EXE`) and check whether the message comes back. This is observed
-  behaviour; the exact memory requirement of the sound drivers has not been measured.
+* **"Insufficient free conventional memory" (CD-ROM build)**: seen with the original `MSCDEX` set-up even though
+  about 620 KB of conventional memory were free. It disappeared after switching to `SHSUCDX` + `VIDE-CDD`. Disabling the
+  sound card in `FIFA.CFG` also moved the game past this message once, so the exact cause (CD driver or sound set-up)
+  is not settled; try the CD driver first.
 * Replays: floppy-generation replays are 21,634 bytes, CD-generation replays 21,674 bytes. Keep each replay set with the
   build that created it (the mismatch is a suspected cause of a black screen when loading a replay, not confirmed).
 
