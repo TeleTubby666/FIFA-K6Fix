@@ -76,7 +76,7 @@ For the standard build listed below this is offset `0x96F43` (A) and `0x96EAA` (
 
 ## Known builds
 
-The patcher recognises these builds (all three were checked with `--check`; the loader is the same code block in each,
+The patcher recognises these builds (all of them were checked with `--check`; the loader is the same code block in each,
 the two patch sites are always `0x99` bytes apart):
 
 | Build | Size | SHA-256 | Patch sites (file offset A / B) | Status |
@@ -84,8 +84,9 @@ the two patch sites are always `0x99` bytes apart):
 | Floppy release (1994) | 816,980 | `8f1ae8d4080729df06a8ec4d2fceee820f21b21325b7146f183cc50d06a48971` | `0x96F43` / `0x96EAA` | **tested** on real K6-III+ hardware and in DOSBox-X |
 | CD-ROM release ("Special Edition") | 856,244 | `00956baf8ef9d1cffde9e5e0d85ddc3b9a2e2dff61711523321443cadf545d3c` | `0xA08AF` / `0xA0816` | **tested** on real K6-III+ hardware (needs the CD and a working DOS CD driver, see Troubleshooting) |
 | Patched "4 MB" EXE for the CD-ROM release | 835,860 | `30e405ba6e9195bdea6fcfb7316424b3ce15d1c2f405465c14134f8a5aaaf774` | `0x9B907` / `0x9B86E` | **tested** on real K6-III+ hardware (needs the CD and a working DOS CD driver, see Troubleshooting) |
+| `EDITOR.EXE` of the CD-ROM release (team editor) | 313,780 | `d07bff908524c0d00ec485c53caa6a7301a6c617ff72a92c58360c79e535e0ff` | `0x1C1AD` / `0x1C114` | same loader, sites found, not yet tested on hardware |
 
-CRC-32 of the unpatched files (as printed by `FK6FIX.EXE`): floppy `2D5602DB`, CD-ROM `5E0BCA79`, "4 MB" `A5ADB291`.
+CRC-32 of the unpatched files (as printed by `FK6FIX.EXE`): floppy `2D5602DB`, CD-ROM `5E0BCA79`, "4 MB" `A5ADB291`, `EDITOR.EXE` `F73CEBB5`.
 
 For the standard build, CRC-32 is `2D5602DB` before and `4A08FA59` after patching (`FK6FIX.EXE` prints CRC-32, the Python
 tool prints both); SHA-256 after patching is `ecdecd544ac0d0ad4e677a6269f671980de1759c2b42745820b9b4bdeeff7395`.
