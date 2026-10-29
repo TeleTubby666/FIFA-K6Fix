@@ -82,8 +82,8 @@ the two patch sites are always `0x99` bytes apart):
 | Build | Size | SHA-256 | Patch sites (file offset A / B) | Status |
 |---|---|---|---|---|
 | Floppy release (1994) | 816,980 | `8f1ae8d4080729df06a8ec4d2fceee820f21b21325b7146f183cc50d06a48971` | `0x96F43` / `0x96EAA` | **tested** on real K6-III+ hardware and in DOSBox-X |
-| CD-ROM release ("Special Edition") | 856,244 | `00956baf8ef9d1cffde9e5e0d85ddc3b9a2e2dff61711523321443cadf545d3c` | `0xA08AF` / `0xA0816` | sites found, not yet tested on hardware |
-| Patched "4 MB" EXE for the CD-ROM release | 835,860 | `30e405ba6e9195bdea6fcfb7316424b3ce15d1c2f405465c14134f8a5aaaf774` | `0x9B907` / `0x9B86E` | sites found, not yet tested on hardware |
+| CD-ROM release ("Special Edition") | 856,244 | `00956baf8ef9d1cffde9e5e0d85ddc3b9a2e2dff61711523321443cadf545d3c` | `0xA08AF` / `0xA0816` | **tested** on real K6-III+ hardware (needs the CD and a working DOS CD driver, see Troubleshooting) |
+| Patched "4 MB" EXE for the CD-ROM release | 835,860 | `30e405ba6e9195bdea6fcfb7316424b3ce15d1c2f405465c14134f8a5aaaf774` | `0x9B907` / `0x9B86E` | **tested** on real K6-III+ hardware (needs the CD and a working DOS CD driver, see Troubleshooting) |
 
 CRC-32 of the unpatched files (as printed by `FK6FIX.EXE`): floppy `2D5602DB`, CD-ROM `5E0BCA79`, "4 MB" `A5ADB291`.
 
@@ -104,7 +104,8 @@ to see it.
 
 ## Tested on
 
-* Real hardware: AMD K6-III+ on an Asus P5A (Super Socket 7), MS-DOS. Before: crash as above. After: the game starts and runs.
+* Real hardware: AMD K6-III+ on an Asus P5A (Super Socket 7), MS-DOS. Before: crash as above. After: the game starts and runs
+  (floppy build, CD-ROM build and "4 MB" build; the latter two with the CD inserted).
 * DOSBox-X: the patched file runs.
 * `FK6FIX.EXE` itself: built and tested automatically in DOSBox against synthetic files (including files larger than
   64 KB) on every change. On real DOS hardware (K6 machine) `--check` was run on all three known builds and reports the
@@ -113,6 +114,28 @@ to see it.
 Reports from other CPUs are welcome. The patch should also be harmless on Intel/Cyrix/other CPUs, because it makes the loader
 use the same value as a 486 would on every CPU. A report in the VOGONS forum describes the same message on a Cyrix 486
 upgrade; whether this patch fixes that has **not** been verified.
+
+## Troubleshooting (CD-ROM and "4 MB" builds)
+
+The CD-ROM and "4 MB" builds read their game data from the CD (`D:\FIFA\...`). The loader patch only fixes the start-up
+crash; the following problems were seen on the test machine **after** patching and had other causes:
+
+* **"No CDROM drive detected"**: no CD driver / MSCDEX is loaded, or the CD is not inserted.
+* **Hard freeze right after starting the game (only a reset helps)**: seen with the original Windows MS-DOS `MSCDEX`
+  together with `VIDE-CDD`. Using `SHSUCDX` (with the same `VIDE-CDD` driver) instead of `MSCDEX` fixed it. If
+  `DIR D:` does not work in plain DOS, the game cannot work either; fix the CD driver first.
+* **"Insufficient free conventional memory" (CD-ROM build)**: caused by the sound set-up in `FIFA.CFG`, not by the CD
+  and not by the patch. With sound disabled the game got past this point:
+
+  ```
+  SFX -1,FFFFh,-1,-1,-1
+  MUSIC -1,FFFFh,-1,-1,-1
+  ```
+
+  Re-enable your sound card afterwards (in `CONFIG.EXE`) and check whether the message comes back. This is observed
+  behaviour; the exact memory requirement of the sound drivers has not been measured.
+* Replays: floppy-generation replays are 21,634 bytes, CD-generation replays 21,674 bytes. Keep each replay set with the
+  build that created it (the mismatch is a suspected cause of a black screen when loading a replay, not confirmed).
 
 ## What exactly does the patch change?
 
