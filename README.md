@@ -129,6 +129,10 @@ crash; the following problems were seen on the test machine **after** patching a
   about 620 KB of conventional memory were free. It disappeared after switching to `SHSUCDX` + `VIDE-CDD`. Disabling the
   sound card in `FIFA.CFG` also moved the game past this message once, so the exact cause (CD driver or sound set-up)
   is not settled; try the CD driver first.
+* **Stuttering in the CD-ROM and "4 MB" builds** (the floppy build is smooth on the same machine): observed on the K6-III+ at full
+  speed, with and without sound, with PIO and DMA CD access. It disappeared when the CPU was slowed down with a CPU
+  throttle setting (the multiplier alone did not make the difference). The cause has not been found; it looks like a
+  timing problem that appears on a very fast CPU. Reports from other CPUs are welcome.
 * Replays: floppy-generation replays are 21,634 bytes, CD-generation replays 21,674 bytes. Keep each replay set with the
   build that created it (the mismatch is a suspected cause of a black screen when loading a replay, not confirmed).
 
